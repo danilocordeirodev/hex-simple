@@ -4,6 +4,7 @@ import com.cordeiro.hex.adapters.in.controller.mapper.CustomerMapper;
 import com.cordeiro.hex.adapters.in.controller.request.CustomerRequest;
 import com.cordeiro.hex.adapters.in.controller.response.CustomerResponse;
 import com.cordeiro.hex.application.core.domain.Customer;
+import com.cordeiro.hex.application.ports.in.DeleteCustomerByIdInputPort;
 import com.cordeiro.hex.application.ports.in.FindCustomerByIdInputPort;
 import com.cordeiro.hex.application.ports.in.InsertCustomerInputPort;
 import com.cordeiro.hex.application.ports.in.UpdateCustomerInputPort;
@@ -24,6 +25,9 @@ public class CustomerController {
 
     @Autowired
     private UpdateCustomerInputPort updateCustomerInputPort;
+
+    @Autowired
+    private DeleteCustomerByIdInputPort deleteCustomerByIdInputPort;
     @Autowired
     private CustomerMapper customerMapper;
 
@@ -47,6 +51,12 @@ public class CustomerController {
         Customer customer = customerMapper.toCustomer(customerRequest);
         customer.setId(id);
         updateCustomerInputPort.update(customer, customerRequest.getZipCode());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable final String id) {
+        deleteCustomerByIdInputPort.delete(id);
         return ResponseEntity.noContent().build();
     }
 }
