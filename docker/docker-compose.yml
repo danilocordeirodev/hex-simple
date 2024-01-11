@@ -1,4 +1,4 @@
-version: "3"
+version: "3.1"
 services:
   wiremock:
     image: "wiremock/wiremock:latest"
@@ -9,3 +9,81 @@ services:
       - ./wiremock/__files:/home/wiremock/__files
       - ./wiremock/mappings:/home/wiremock/mappings
     entrypoint: ["/docker-entrypoint.sh", "--global-response-templating", "--disable-gzip", "--verbose"]
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    networks:
+      - broker-kafka
+    ports:
+      - 2181:2181
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    networks:
+      - broker-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    networks:
+      - broker-kafka
+    depends_on:
+      - kafka
+    ports:
+      - 9000:9000
+    environment:
+      KAFKA_BROKERCONNECT: kafka:29092
+
+  mongo:
+    image: mongo
+    container_name: mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - db:/data/db
+    networks:
+      - mongo-compose-network
+
+  mongo-express:
+    image: mongo-express
+    container_name: mexpressdb
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=password
+      - ME_CONFIG_MONGODB_URL=mongodb://root:password@mongo:27017/?authSource=admin
+      - ME_CONFIG_BASICAUTH_USERNAME=mexpress
+      - ME_CONFIG_BASICAUTH_PASSWORD=mexpress
+    links:
+      - mongo
+    networks:
+      - mongo-compose-network
+    restart: unless-stopped
+    ports:
+      - "8089:8081"
+
+networks:
+  broker-kafka:
+    driver: bridge
+  mongo-compose-network:
+    driver: bridge
+
+volumes:
+  db:
+    driver: local
